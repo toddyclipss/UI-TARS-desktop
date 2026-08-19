@@ -34,6 +34,11 @@ import { cn } from '@renderer/utils';
 
 import { PresetImport, PresetBanner } from './preset';
 import { api } from '@/renderer/src/api';
+import {
+  GEMINI_3_MODELS,
+  GEMINI_DEFAULT_BASE_URL,
+} from '@ui-tars/shared/constants';
+
 
 const formSchema = z.object({
   vlmProvider: z.nativeEnum(VLMProviderV2, {
@@ -296,7 +301,31 @@ export function VLMSettings({
                   <FormLabel>VLM Provider</FormLabel>
                   <Select
                     disabled={isRemoteAutoUpdatedPreset}
-                    onValueChange={field.onChange}
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      if (val === VLMProviderV2.google_gemini) {
+                        const curUrl = form.getValues('vlmBaseUrl');
+                        if (
+                          !curUrl ||
+                          curUrl === 'https://api.openai.com/v1'
+                        ) {
+                          form.setValue(
+                            'vlmBaseUrl',
+                            GEMINI_DEFAULT_BASE_URL,
+                          );
+                        }
+                        const curModel = form.getValues('vlmModelName');
+                        if (
+                          !curModel ||
+                          !GEMINI_3_MODELS.includes(curModel as any)
+                        ) {
+                          form.setValue(
+                            'vlmModelName',
+                            'gemini-3.7-flash',
+                          );
+                        }
+                      }
+                    }}
                     value={field.value}
                   >
                     <SelectTrigger className="w-full bg-white">
@@ -325,7 +354,11 @@ export function VLMSettings({
                 <FormControl>
                   <Input
                     className="bg-white"
-                    placeholder="Enter VLM Base URL"
+                    placeholder={
+                      form.watch('vlmProvider') === VLMProviderV2.google_gemini
+                        ? GEMINI_DEFAULT_BASE_URL
+                        : 'Enter VLM Base URL'
+                    }
                     {...field}
                     disabled={isRemoteAutoUpdatedPreset}
                   />
@@ -340,13 +373,21 @@ export function VLMSettings({
             name="vlmApiKey"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>VLM API Key</FormLabel>
+                <FormLabel>
+                  {form.watch('vlmProvider') === VLMProviderV2.google_gemini
+                    ? 'Google AI Studio API Key'
+                    : 'VLM API Key'}
+                </FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       className="bg-white"
-                      placeholder="Enter VLM API_Key"
+                      placeholder={
+                        form.watch('vlmProvider') === VLMProviderV2.google_gemini
+                          ? 'Enter Google AI Studio API Key (AIzaSy...)'
+                          : 'Enter VLM API_Key'
+                      }
                       {...field}
                       disabled={isRemoteAutoUpdatedPreset}
                     />
@@ -373,20 +414,60 @@ export function VLMSettings({
           <FormField
             control={form.control}
             name="vlmModelName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>VLM Model Name</FormLabel>
-                <FormControl>
-                  <Input
-                    className="bg-white"
-                    placeholder="Enter VLM Model Name"
-                    {...field}
-                    disabled={isRemoteAutoUpdatedPreset}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const isGemini =
+                form.watch('vlmProvider') === VLMProviderV2.google_gemini;
+              return (
+                <FormItem>
+                  <FormLabel>VLM Model Name</FormLabel>
+                  {isGemini ? (
+                    <div className="space-y-2">
+                      <Select
+                        disabled={isRemoteAutoUpdatedPreset}
+                        onValueChange={field.onChange}
+                        value={
+                          GEMINI_3_MODELS.includes(field.value as any)
+                            ? field.value
+                            : undefined
+                        }
+                      >
+                        <SelectTrigger className="w-full bg-white">
+                          <SelectValue placeholder="Select a Gemini 3.0+ model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GEMINI_3_MODELS.map((model) => (
+                            <SelectItem key={model} value={model}>
+                              {model}{' '}
+                              {model === 'gemini-3.7-flash' ? '(Latest)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormControl>
+                        <Input
+                          className="bg-white"
+                          placeholder="Or enter custom Gemini model ID"
+                          {...field}
+                          disabled={isRemoteAutoUpdatedPreset}
+                        />
+                      </FormControl>
+                    </div>
+                  ) : (
+                    <FormControl>
+                      <Input
+                        className="bg-white"
+                        placeholder="Enter VLM Model Name"
+                        {...field}
+                        disabled={isRemoteAutoUpdatedPreset}
+                      />
+                    </FormControl>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
+
 
           {/* Model Availability Check */}
           <ModelAvailabilityCheck
