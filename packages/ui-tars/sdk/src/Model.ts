@@ -124,26 +124,22 @@ export class UITarsModel extends Model {
       apiKey,
     });
 
-    const createCompletionPrams: ChatCompletionCreateParamsNonStreaming = {
+    // Build clean completion params with only valid, non-null properties
+    const createCompletionParams: ChatCompletionCreateParamsNonStreaming = {
       model,
       messages,
       stream: false,
-      seed: null,
-      stop: null,
-      frequency_penalty: null,
-      presence_penalty: null,
-      // custom options
       max_tokens,
       temperature,
       top_p,
     };
 
-    const createCompletionPramsThinkingVp: ThinkingVisionProModelConfig = {
-      ...createCompletionPrams,
-      thinking: {
+    if (uiTarsVersion === UITarsModelVersion.DOUBAO_1_5_20B) {
+      (createCompletionParams as any).thinking = {
         type: 'disabled',
-      },
-    };
+      };
+    }
+
 
     const startTime = Date.now();
 
@@ -261,8 +257,12 @@ export class UITarsModel extends Model {
     }
 
     // Use Chat Completions API if not using Response API
+    logger?.info(
+      `[UITarsModel] Calling chat.completions.create with model=${model}, messagesCount=${messages.length}, max_tokens=${max_tokens}`,
+    );
+
     const result = await openai.chat.completions.create(
-      createCompletionPramsThinkingVp,
+      createCompletionParams,
       {
         ...options,
         timeout: 1000 * 30,
@@ -270,11 +270,20 @@ export class UITarsModel extends Model {
       },
     );
 
+    const costTime = Date.now() - startTime;
+    const costTokens = result.usage?.total_tokens ?? 0;
+    const prediction = result.choices?.[0]?.message?.content ?? '';
+
+    logger?.info(
+      `[UITarsModel] Response received in ${costTime}ms, tokens: ${costTokens}, prediction length: ${prediction.length}`,
+    );
+
     return {
-      prediction: result.choices?.[0]?.message?.content ?? '',
-      costTime: Date.now() - startTime,
-      costTokens: result.usage?.total_tokens ?? 0,
+      prediction,
+      costTime,
+      costTokens,
     };
+
   }
 
   async invoke(params: InvokeParams): Promise<InvokeOutput> {

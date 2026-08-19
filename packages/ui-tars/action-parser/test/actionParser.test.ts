@@ -597,4 +597,58 @@ Action: click(start_box='[0, 964, 10, 984]')`;
       ]);
     });
   });
+
+  describe('Google Gemini 3.0+ outputs', () => {
+    it('should parse markdown code block wrapped actions', () => {
+      const input = `Thought: I will click on the Chrome icon on the taskbar.
+Action: 
+\`\`\`
+click(point='<point>500 200</point>')
+\`\`\``;
+
+      const result = parseActionVlm(input, [1000, 1000], 'bc', {
+        width: 1920,
+        height: 1080,
+      });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].action_type).toBe('click');
+      expect(result[0].action_inputs.start_coords).toEqual([960, 216]);
+    });
+
+    it('should parse double-quoted arguments and commas in text', () => {
+      const input = `Thought: Type search query into Google.
+Action: type(content="hello, world!\\n")`;
+
+      const result = parseActionVlm(input);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].action_type).toBe('type');
+      expect(result[0].action_inputs.content).toBe('hello, world!\\n');
+    });
+
+    it('should strip trailing comments from action lines', () => {
+      const input = `Thought: Double click on folder.
+Action: left_double(start_box='(250, 300)') # Double click folder`;
+
+      const result = parseActionVlm(input);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].action_type).toBe('left_double');
+      expect(result[0].action_inputs.start_box).toBe('[0.25,0.3,0.25,0.3]');
+    });
+
+    it('should clamp out-of-bound coordinates for safety', () => {
+      const input = `Thought: Click element near corner.
+Action: click(start_box='(1200, -50)')`;
+
+      const result = parseActionVlm(input);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].action_type).toBe('click');
+      // 1200 clamped to 1.0, -50 clamped to 0.0
+      expect(result[0].action_inputs.start_box).toBe('[1,0,1,0]');
+    });
+  });
 });
+

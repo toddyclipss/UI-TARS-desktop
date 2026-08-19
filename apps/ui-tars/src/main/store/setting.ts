@@ -8,6 +8,7 @@ import yaml from 'js-yaml';
 import * as env from '@main/env';
 import { logger } from '@main/logger';
 
+import { GEMINI_DEFAULT_BASE_URL } from '@ui-tars/shared/constants';
 import {
   LocalStore,
   SearchEngineForSettings,
@@ -19,10 +20,10 @@ import { BrowserWindow } from 'electron';
 
 export const DEFAULT_SETTING: LocalStore = {
   language: 'en',
-  vlmProvider: (env.vlmProvider as VLMProviderV2) || '',
-  vlmBaseUrl: env.vlmBaseUrl || '',
+  vlmProvider: VLMProviderV2.google_gemini,
+  vlmBaseUrl: env.vlmBaseUrl || GEMINI_DEFAULT_BASE_URL,
   vlmApiKey: env.vlmApiKey || '',
-  vlmModelName: env.vlmModelName || '',
+  vlmModelName: env.vlmModelName || 'gemini-3.7-flash',
   useResponsesApi: false,
   maxLoopCount: 100,
   loopIntervalInMs: 1000,
@@ -42,6 +43,33 @@ export class SettingStore {
         defaults: DEFAULT_SETTING,
       });
 
+      // Auto-migrate legacy or unconfigured provider settings to Google Gemini 3.0+
+      try {
+        const curStore = SettingStore.instance.store;
+        if (
+          !curStore.vlmProvider ||
+          !Object.values(VLMProviderV2).includes(curStore.vlmProvider)
+        ) {
+          SettingStore.instance.set('vlmProvider', VLMProviderV2.google_gemini);
+        }
+        if (
+          !curStore.vlmBaseUrl ||
+          curStore.vlmBaseUrl === 'https://api.openai.com/v1' ||
+          curStore.vlmBaseUrl.includes('volces.com')
+        ) {
+          SettingStore.instance.set('vlmBaseUrl', GEMINI_DEFAULT_BASE_URL);
+        }
+        if (
+          !curStore.vlmModelName ||
+          curStore.vlmModelName.includes('doubao') ||
+          curStore.vlmModelName.includes('ui-tars')
+        ) {
+          SettingStore.instance.set('vlmModelName', 'gemini-3.7-flash');
+        }
+      } catch (err) {
+        logger.error('[SettingStore migration error]', err);
+      }
+
       SettingStore.instance.onDidAnyChange((newValue, oldValue) => {
         logger.log(
           `SettingStore: ${JSON.stringify(oldValue)} changed to ${JSON.stringify(newValue)}`,
@@ -54,6 +82,7 @@ export class SettingStore {
     }
     return SettingStore.instance;
   }
+
 
   public static set<K extends keyof LocalStore>(
     key: K,
