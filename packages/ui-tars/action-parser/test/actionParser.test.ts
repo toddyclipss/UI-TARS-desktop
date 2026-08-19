@@ -454,7 +454,7 @@ Action: click(start_box='[130,226]')`;
       expect(result).toEqual([
         {
           action_inputs: {
-            start_box: '[0.1]',
+            start_box: '[0.1,0.2,0.1,0.2]',
           },
           action_type: 'click',
           reflection: null,
@@ -462,6 +462,7 @@ Action: click(start_box='[130,226]')`;
         },
       ]);
     });
+
 
     it('should handle with Chinese colon', () => {
       const input = `Thought: I need to click this button
@@ -627,28 +628,61 @@ Action: type(content="hello, world!\\n")`;
       expect(result[0].action_inputs.content).toBe('hello, world!\\n');
     });
 
-    it('should strip trailing comments from action lines', () => {
-      const input = `Thought: Double click on folder.
-Action: left_double(start_box='(250, 300)') # Double click folder`;
+    it('should preserve # and special characters inside quotes while stripping external comments', () => {
+      const input = `Thought: Type code and hashtag.
+Action: type(content="C# é uma linguagem #developer") # Click and type`;
 
       const result = parseActionVlm(input);
 
       expect(result).toHaveLength(1);
-      expect(result[0].action_type).toBe('left_double');
-      expect(result[0].action_inputs.start_box).toBe('[0.25,0.3,0.25,0.3]');
+      expect(result[0].action_type).toBe('type');
+      expect(result[0].action_inputs.content).toBe('C# é uma linguagem #developer');
     });
 
-    it('should clamp out-of-bound coordinates for safety', () => {
-      const input = `Thought: Click element near corner.
-Action: click(start_box='(1200, -50)')`;
+    it('should parse multiple actions on a single newline break', () => {
+      const input = `Thought: Perform multiple steps
+Action: click(start_box='(100, 200)')
+type(content="C# programming\\n")`;
 
       const result = parseActionVlm(input);
 
-      expect(result).toHaveLength(1);
+      expect(result).toHaveLength(2);
       expect(result[0].action_type).toBe('click');
-      // 1200 clamped to 1.0, -50 clamped to 0.0
-      expect(result[0].action_inputs.start_box).toBe('[1,0,1,0]');
+      expect(result[0].action_inputs.start_box).toBe('[0.1,0.2,0.1,0.2]');
+      expect(result[1].action_type).toBe('type');
+      expect(result[1].action_inputs.content).toBe('C# programming\\n');
+    });
+
+    it('should strictly reject out-of-bounds coordinates instead of dangerous silent clamping', () => {
+      const input = `click(start_box='(5000, 200)')`;
+
+      const result = parseActionVlm(input);
+
+      // 5000 is far out of bounds [0, 1000], action must be rejected
+      expect(result).toHaveLength(0);
+    });
+
+    it('should strictly reject negative coordinates', () => {
+      const input = `click(start_box='(-50, 100)')`;
+
+      const result = parseActionVlm(input);
+
+      expect(result).toHaveLength(0);
+    });
+
+
+    it('should accept exact boundary coordinates (0, 0) and (1000, 1000)', () => {
+      const input = `Thought: Click screen bounds.
+Action: click(start_box='(0, 0)')
+click(start_box='(1000, 1000)')`;
+
+      const result = parseActionVlm(input);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].action_inputs.start_box).toBe('[0,0,0,0]');
+      expect(result[1].action_inputs.start_box).toBe('[1,1,1,1]');
     });
   });
 });
+
 

@@ -6,57 +6,9 @@ import {
   ActionInputs,
   PredictionParsed,
   UITarsModelVersion,
-  MAX_RATIO,
-  IMAGE_FACTOR,
-  MIN_PIXELS,
-  MAX_PIXELS_V1_5,
 } from '@ui-tars/shared/types';
 import isNumber from 'lodash.isnumber';
 
-function roundByFactor(num: number, factor: number): number {
-  return Math.round(num / factor) * factor;
-}
-
-function floorByFactor(num: number, factor: number): number {
-  return Math.floor(num / factor) * factor;
-}
-
-function ceilByFactor(num: number, factor: number): number {
-  return Math.ceil(num / factor) * factor;
-}
-
-function smartResizeForV15(
-  height: number,
-  width: number,
-  maxRatio: number = MAX_RATIO,
-  factor: number = IMAGE_FACTOR,
-  minPixels: number = MIN_PIXELS,
-  maxPixels: number = MAX_PIXELS_V1_5,
-): [number, number] | null {
-  if (Math.max(height, width) / Math.min(height, width) > maxRatio) {
-    console.error(
-      `absolute aspect ratio must be smaller than ${maxRatio}, got ${
-        Math.max(height, width) / Math.min(height, width)
-      }`,
-    );
-    return null;
-  }
-
-  let wBar = Math.max(factor, roundByFactor(width, factor));
-  let hBar = Math.max(factor, roundByFactor(height, factor));
-
-  if (hBar * wBar > maxPixels) {
-    const beta = Math.sqrt((height * width) / maxPixels);
-    hBar = floorByFactor(height / beta, factor);
-    wBar = floorByFactor(width / beta, factor);
-  } else if (hBar * wBar < minPixels) {
-    const beta = Math.sqrt(minPixels / (height * width));
-    hBar = ceilByFactor(height * beta, factor);
-    wBar = ceilByFactor(width * beta, factor);
-  }
-
-  return [wBar, hBar];
-}
 
 export function actionParser(params: {
   prediction: string;
@@ -117,6 +69,83 @@ export const VALID_ACTIONS = new Set([
   'user_stop',
 ]);
 
+/**
+ * Strips line comments (# ...) ONLY when outside of quotes.
+ */
+export function stripCommentOutsideQuotes(line: string): string {
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const prev = i > 0 ? line[i - 1] : '';
+    if (char === "'" && !inDoubleQuote && prev !== '\\') {
+      inSingleQuote = !inSingleQuote;
+    } else if (char === '"' && !inSingleQuote && prev !== '\\') {
+      inDoubleQuote = !inDoubleQuote;
+    } else if (char === '#' && !inSingleQuote && !inDoubleQuote) {
+      return line.slice(0, i).trim();
+    }
+  }
+  return line.trim();
+}
+
+/**
+ * Splits sequential action statements whether separated by single newline (\n),
+ * double newline (\n\n), or whitespace.
+ */
+export function splitActionStatements(text: string): string[] {
+  const statements: string[] = [];
+  const lines = text.split(/\r?\n/);
+  let current = '';
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let depth = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (current.trim() && depth === 0 && !inSingleQuote && !inDoubleQuote) {
+        statements.push(current.trim());
+        current = '';
+      }
+      continue;
+    }
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const prev = i > 0 ? line[i - 1] : '';
+      if (char === "'" && !inDoubleQuote && prev !== '\\') {
+        inSingleQuote = !inSingleQuote;
+      } else if (char === '"' && !inSingleQuote && prev !== '\\') {
+        inDoubleQuote = !inDoubleQuote;
+      } else if (char === '(' && !inSingleQuote && !inDoubleQuote) {
+        depth++;
+      } else if (char === ')' && !inSingleQuote && !inDoubleQuote) {
+        depth = Math.max(0, depth - 1);
+      }
+    }
+
+    if (current) {
+      current += '\n' + line;
+    } else {
+      current = line;
+    }
+
+    // When parentheses are balanced at the end of a line, finish the statement
+    if (depth === 0 && !inSingleQuote && !inDoubleQuote && current.trim()) {
+      statements.push(current.trim());
+      current = '';
+    }
+  }
+
+  if (current.trim()) {
+    statements.push(current.trim());
+  }
+
+  return statements;
+}
+
 export function parseActionVlm(
   text: string,
   factors: [number, number] = [1000, 1000],
@@ -126,32 +155,18 @@ export function parseActionVlm(
     height: number;
   },
   scaleFactor?: number,
-  modelVer: UITarsModelVersion = UITarsModelVersion.V1_0,
+  modelVer: UITarsModelVersion = UITarsModelVersion.GEMINI_3_X,
 ): PredictionParsed[] {
   let reflection: string | null = null;
   let thought: string | null = null;
   let actionStr = '';
 
-  let smartResizeFactors: [number, number] | null = null;
-  if (
-    modelVer === UITarsModelVersion.V1_5 &&
-    screenContext?.height &&
-    screenContext?.width
-  ) {
-    smartResizeFactors = smartResizeForV15(
-      screenContext.height,
-      screenContext.width,
-    );
-  }
-
   text = text.trim();
   if (mode === 'bc') {
-    // Parse thought/reflection based on different text patterns
     if (text.includes('Thought:')) {
       const thoughtMatch = text.match(
         /Thought: ([\s\S]+?)(?=\s*Action[:：]|$)/,
       );
-
       if (thoughtMatch) {
         thought = thoughtMatch[1].trim();
       }
@@ -172,14 +187,16 @@ export function parseActionVlm(
       }
     }
 
-    if (!['Action:', 'Action：'].some((keyword) => text.includes(keyword))) {
+    if (text.includes('Thought:') && !['Action:', 'Action：'].some((keyword) => text.includes(keyword))) {
+      actionStr = '';
+    } else if (!['Action:', 'Action：'].some((keyword) => text.includes(keyword))) {
       actionStr = text;
     } else {
       const actionParts = text.split(/Action[:：]/);
       actionStr = actionParts[actionParts.length - 1];
     }
+
   } else if (mode === 'o1') {
-    // Parse o1 format
     const thoughtMatch = text.match(/<Thought>\s*(.*?)\s*<\/Thought>/);
     const actionSummaryMatch = text.match(
       /\nAction_Summary:\s*(.*?)\s*Action:/,
@@ -196,24 +213,29 @@ export function parseActionVlm(
     actionStr = actionContent || '';
   }
 
-  // Sanitize action string: remove markdown code fences and surrounding backticks
+  // Sanitize action string: remove markdown code fences and backticks
   actionStr = actionStr
     .replace(/^```[a-zA-Z0-9_-]*\s*/gm, '')
     .replace(/\s*```$/gm, '')
-    .replace(/`/g, '')
+    .replace(/^`+|`+$/gm, '')
     .trim();
 
-  // Parse actions (split by double newline or individual action statements)
-  const allActionLines = actionStr.split('\n\n');
+  // Split multiple actions safely
+  const allActionStatements = splitActionStatements(actionStr);
   const actions: PredictionParsed[] = [];
 
-  for (const rawStr of allActionLines) {
+  for (const rawStr of allActionStatements) {
     const trimmedRaw = rawStr.trim();
     if (!trimmedRaw) continue;
 
-    const actionInstance = parseAction(trimmedRaw);
+    const actionInstance = parseAction(
+      rawStr.replace(/\n/g, () => '\\n').trimStart(),
+    );
     let actionType = '';
     let actionInputs: ActionInputs = {};
+    let isActionValid = true;
+
+
 
     if (actionInstance && VALID_ACTIONS.has(actionInstance.function)) {
       actionType = actionInstance.function;
@@ -226,7 +248,7 @@ export function parseActionVlm(
 
         if (paramName.includes('start_box') || paramName.includes('end_box')) {
           const oriBox = trimmedParam;
-          // Extract numeric values from any box/point format
+          if (!oriBox) continue;
           const numbers = oriBox
             .replace(/<point>|<\/point>|<bbox>|<\/bbox>/g, ' ')
             .replace(/[()[\]]/g, ' ')
@@ -235,63 +257,92 @@ export function parseActionVlm(
             .split(/\s+/)
             .filter((ori) => ori !== '');
 
-          // Convert to float and validate bounds
+          // If box is explicitly empty (e.g. start_box='' or start_box='(,,)')
+          if (numbers.length === 0) {
+            actionInputs[
+              paramName.trim() as keyof Omit<
+                ActionInputs,
+                'start_coords' | 'end_coords'
+              >
+            ] = JSON.stringify([]);
+            if (screenContext?.width && screenContext?.height) {
+              const boxKey = paramName.includes('start_box')
+                ? 'start_coords'
+                : 'end_coords';
+              actionInputs[boxKey] = [];
+            }
+            continue;
+          }
+
+          // Require 1, 2, or 4 coordinate values
+          if (numbers.length !== 1 && numbers.length !== 2 && numbers.length !== 4) {
+            isActionValid = false;
+            break;
+          }
+
           const floatNumbers: number[] = [];
           for (let idx = 0; idx < numbers.length; idx++) {
             const parsedNum = Number.parseFloat(numbers[idx]);
             if (Number.isNaN(parsedNum) || !Number.isFinite(parsedNum)) {
-              continue;
+              isActionValid = false;
+              break;
             }
 
             const factorIndex = idx % 2;
             let normalizedCoord = parsedNum;
 
-            if (modelVer === UITarsModelVersion.V1_5 && smartResizeFactors) {
-              normalizedCoord = parsedNum / smartResizeFactors[factorIndex];
-            } else if (parsedNum > 1) {
+            if (factors[factorIndex] && parsedNum > 1) {
               // Normalized scale [0, 1000] -> [0, 1]
               normalizedCoord = parsedNum / factors[factorIndex];
             }
 
-            // Clamp coordinate between 0 and 1 for screen safety
+            // Strict Validation: Reject if outside screen bounds (allowing tiny 0.5% float margin)
+            if (normalizedCoord < -0.005 || normalizedCoord > 1.005) {
+              isActionValid = false;
+              break;
+            }
+
+            // Safe normalize to [0, 1]
             normalizedCoord = Math.max(0, Math.min(1, normalizedCoord));
             floatNumbers.push(normalizedCoord);
+          }
+
+          if (!isActionValid) {
+            break;
           }
 
           if (floatNumbers.length === 2) {
             floatNumbers.push(floatNumbers[0], floatNumbers[1]);
           }
 
-          if (floatNumbers.length >= 2) {
-            actionInputs[
-              paramName.trim() as keyof Omit<
-                ActionInputs,
-                'start_coords' | 'end_coords'
-              >
-            ] = JSON.stringify(floatNumbers);
+          actionInputs[
+            paramName.trim() as keyof Omit<
+              ActionInputs,
+              'start_coords' | 'end_coords'
+            >
+          ] = JSON.stringify(floatNumbers);
 
-            if (screenContext?.width && screenContext?.height) {
-              const boxKey = paramName.includes('start_box')
-                ? 'start_coords'
-                : 'end_coords';
-              const [x1, y1, x2 = x1, y2 = y1] = floatNumbers;
-              const [widthFactor, heightFactor] = factors;
+          if (screenContext?.width && screenContext?.height) {
+            const boxKey = paramName.includes('start_box')
+              ? 'start_coords'
+              : 'end_coords';
+            const [x1, y1, x2 = x1, y2 = y1] = floatNumbers;
+            const [widthFactor, heightFactor] = factors;
 
-              actionInputs[boxKey] = [x1, y1, x2, y2].every(isNumber)
-                ? [
-                    (Math.round(
-                      ((x1 + x2) / 2) * screenContext?.width * widthFactor,
-                    ) /
-                      widthFactor) *
-                      (scaleFactor ?? 1),
-                    (Math.round(
-                      ((y1 + y2) / 2) * screenContext?.height * heightFactor,
-                    ) /
-                      heightFactor) *
-                      (scaleFactor ?? 1),
-                  ]
-                : [];
-            }
+            actionInputs[boxKey] = [x1, y1, x2, y2].every(isNumber) && floatNumbers.length >= 2
+              ? [
+                  (Math.round(
+                    ((x1 + x2) / 2) * screenContext?.width * widthFactor,
+                  ) /
+                    widthFactor) *
+                    (scaleFactor ?? 1),
+                  (Math.round(
+                    ((y1 + y2) / 2) * screenContext?.height * heightFactor,
+                  ) /
+                    heightFactor) *
+                    (scaleFactor ?? 1),
+                ]
+              : [];
           }
         } else {
           actionInputs[
@@ -302,9 +353,11 @@ export function parseActionVlm(
           ] = trimmedParam;
         }
       }
+    } else {
+      isActionValid = false;
     }
 
-    if (actionType) {
+    if (isActionValid && actionType) {
       actions.push({
         reflection: reflection,
         thought: thought || '',
@@ -314,8 +367,19 @@ export function parseActionVlm(
     }
   }
 
+  // If no valid actions were found but thought/reflection exists, emit empty action record
+  if (actions.length === 0 && (thought !== null || reflection !== null)) {
+    actions.push({
+      reflection: reflection,
+      thought: thought || '',
+      action_type: '',
+      action_inputs: {},
+    });
+  }
+
   return actions;
 }
+
 
 /**
  * Parses an action string into a structured object
@@ -323,11 +387,11 @@ export function parseActionVlm(
  */
 function parseAction(actionStr: string): { function: string; args: Record<string, string> } | null {
   try {
-    // Remove markdown code fences and backticks
-    let cleaned = actionStr.replace(/```[a-zA-Z0-9_-]*|```/g, '').replace(/`/g, '').trim();
+    // Remove markdown code fences
+    let cleaned = actionStr.replace(/```[a-zA-Z0-9_-]*|```/g, '').trim();
 
-    // Strip trailing line comments (# ...)
-    cleaned = cleaned.replace(/#.*$/m, '').trim();
+    // Strip trailing line comments (# ...) ONLY outside quotes
+    cleaned = stripCommentOutsideQuotes(cleaned);
 
     // Support format: click(start_box='<|box_start|>(x1,y1)<|box_end|>')
     cleaned = cleaned.replace(/<\|box_start\|>|<\|box_end\|>/g, '');
@@ -354,7 +418,6 @@ function parseAction(actionStr: string): { function: string; args: Record<string
       for (const pair of argPairs) {
         const eqIdx = pair.indexOf('=');
         if (eqIdx === -1) {
-          // Positional argument fallback
           continue;
         }
 
@@ -437,4 +500,5 @@ function tokenizeArgs(argsStr: string): string[] {
 
   return result;
 }
+
 

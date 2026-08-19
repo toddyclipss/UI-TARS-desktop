@@ -22,11 +22,9 @@ import {
 import { DEFAULT_FACTORS } from './constants';
 import {
   UITarsModelVersion,
-  MAX_PIXELS_V1_0,
-  MAX_PIXELS_V1_5,
-  MAX_PIXELS_DOUBAO,
   MAX_PIXELS_GEMINI,
 } from '@ui-tars/shared/types';
+
 import type {
   ResponseCreateParamsNonStreaming,
   ResponseInputItem,
@@ -87,7 +85,7 @@ export class UITarsModel extends Model {
    * @returns
    */
   protected async invokeModelProvider(
-    uiTarsVersion: UITarsModelVersion = UITarsModelVersion.V1_0,
+    uiTarsVersion: UITarsModelVersion = UITarsModelVersion.GEMINI_3_X,
     params: {
       messages: Array<ChatCompletionMessageParam>;
       previousResponseId?: string;
@@ -108,10 +106,7 @@ export class UITarsModel extends Model {
       baseURL,
       apiKey,
       model,
-      max_tokens = uiTarsVersion == UITarsModelVersion.V1_5 ||
-      uiTarsVersion == UITarsModelVersion.GEMINI_3_X
-        ? 65535
-        : 1000,
+      max_tokens = 65535,
       temperature = 0,
       top_p = 0.7,
       ...restOptions
@@ -134,11 +129,6 @@ export class UITarsModel extends Model {
       top_p,
     };
 
-    if (uiTarsVersion === UITarsModelVersion.DOUBAO_1_5_20B) {
-      (createCompletionParams as any).thinking = {
-        type: 'disabled',
-      };
-    }
 
 
     const startTime = Date.now();
@@ -302,15 +292,8 @@ export class UITarsModel extends Model {
       `[UITarsModel] invoke: screenContext=${JSON.stringify(screenContext)}, scaleFactor=${scaleFactor}, uiTarsVersion=${uiTarsVersion}, useResponsesApi=${this.modelConfig.useResponsesApi}`,
     );
 
-    const maxPixels =
-      uiTarsVersion === UITarsModelVersion.GEMINI_3_X
-        ? MAX_PIXELS_GEMINI
-        : uiTarsVersion === UITarsModelVersion.V1_5
-          ? MAX_PIXELS_V1_5
-          : uiTarsVersion === UITarsModelVersion.DOUBAO_1_5_15B ||
-              uiTarsVersion === UITarsModelVersion.DOUBAO_1_5_20B
-            ? MAX_PIXELS_DOUBAO
-            : MAX_PIXELS_V1_0;
+    const maxPixels = MAX_PIXELS_GEMINI;
+
 
     const compressedImages = await Promise.all(
       images.map((image) => preprocessResizeImage(image, maxPixels)),

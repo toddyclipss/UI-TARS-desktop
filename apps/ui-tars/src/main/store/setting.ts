@@ -33,6 +33,17 @@ export const DEFAULT_SETTING: LocalStore = {
   utioBaseUrl: '',
 };
 
+function sanitizeSettingForLog(
+  setting: Partial<LocalStore> | null | undefined,
+): Record<string, unknown> {
+  if (!setting) return {};
+  const copy = { ...setting };
+  if (copy.vlmApiKey) {
+    copy.vlmApiKey = '[REDACTED]';
+  }
+  return copy;
+}
+
 export class SettingStore {
   private static instance: ElectronStore<LocalStore>;
 
@@ -72,7 +83,7 @@ export class SettingStore {
 
       SettingStore.instance.onDidAnyChange((newValue, oldValue) => {
         logger.log(
-          `SettingStore: ${JSON.stringify(oldValue)} changed to ${JSON.stringify(newValue)}`,
+          `SettingStore: ${JSON.stringify(sanitizeSettingForLog(oldValue))} changed to ${JSON.stringify(sanitizeSettingForLog(newValue))}`,
         );
         // Notify that value updated
         BrowserWindow.getAllWindows().forEach((win) => {
@@ -82,6 +93,7 @@ export class SettingStore {
     }
     return SettingStore.instance;
   }
+
 
 
   public static set<K extends keyof LocalStore>(
