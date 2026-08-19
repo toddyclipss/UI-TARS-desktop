@@ -42,9 +42,12 @@ export default defineConfig({
     plugins: [
       bytecodePlugin({
         chunkAlias: 'app_private',
-        protectedStrings: [process.env.UI_TARS_APP_PRIVATE_KEY_BASE64!],
+        protectedStrings: [
+          process.env.UI_TARS_APP_PRIVATE_KEY_BASE64,
+        ].filter(Boolean) as string[],
       }),
       tsconfigPaths(),
+
       externalizeDepsPlugin({
         include: [...getExternalPkgs()],
       }),
