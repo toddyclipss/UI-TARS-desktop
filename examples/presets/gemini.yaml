@@ -1,0 +1,8 @@
+name: Google Gemini 3.7 Flash Preset
+language: en
+vlmProvider: Google Gemini (3.0+)
+vlmBaseUrl: https://generativelanguage.googleapis.com/v1beta/openai/
+vlmApiKey: your_google_ai_studio_api_key
+vlmModelName: gemini-3.7-flash
+maxLoopCount: 100
+loopIntervalInMs: 1000
