@@ -98,8 +98,16 @@ export class NutJSElectronOperator extends NutJSOperator {
       await keyboard.releaseKey(Key.LeftControl, Key.V);
       await sleep(50);
       clipboard.writeText(originalClipboard);
+
+      if (content.endsWith('\\n') || content.endsWith('\n')) {
+        await keyboard.pressKey(Key.Enter);
+        await sleep(50);
+        await keyboard.releaseKey(Key.Enter);
+      }
+      return { status: StatusEnum.RUNNING };
     } else {
       return await super.execute(params);
     }
   }
+
 }

@@ -62,8 +62,10 @@ export const VALID_ACTIONS = new Set([
   'scroll',
   'wait',
   'finished',
+  'end',
   'call_user',
   'navigate',
+
   'navigate_back',
   'error_env',
   'user_stop',
@@ -237,8 +239,13 @@ export function parseActionVlm(
 
 
 
-    if (actionInstance && VALID_ACTIONS.has(actionInstance.function)) {
+    if (
+      actionInstance &&
+      (VALID_ACTIONS.has(actionInstance.function) ||
+        VALID_ACTIONS.has(actionInstance.function.toLowerCase()))
+    ) {
       actionType = actionInstance.function;
+
       const params = actionInstance.args;
       actionInputs = {};
 

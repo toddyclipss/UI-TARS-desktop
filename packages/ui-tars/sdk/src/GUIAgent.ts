@@ -532,7 +532,10 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
 
     let parseError = null;
 
-    if (error instanceof InternalServerError) {
+    if (
+      error?.name === 'InternalServerError' ||
+      error?.constructor?.name === 'InternalServerError'
+    ) {
       this.logger.error(
         '[GUIAgent] guiAgentErrorParser instanceof InternalServerError.',
       );
@@ -542,6 +545,7 @@ export class GUIAgent<T extends Operator> extends BaseGUIAgent<
         error.stack,
       );
     }
+
 
     if (!parseError && type === ErrorStatusEnum.REACH_MAXLOOP_ERROR) {
       parseError = new GUIAgentError(

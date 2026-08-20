@@ -200,7 +200,11 @@ export class BrowserOperator extends Operator {
     await this.options.onOperatorAction?.(parsedPrediction);
 
     const { action_type, action_inputs } = parsedPrediction;
-    const startBoxStr = action_inputs?.start_box || '';
+    const startBoxStr =
+      action_inputs?.start_coords ||
+      action_inputs?.start_box ||
+      (action_inputs as any)?.point ||
+      '';
 
     const deviceScaleFactor = await this.getDeviceScaleFactor();
     const coords = parseBoxToScreenCoords({
@@ -208,8 +212,8 @@ export class BrowserOperator extends Operator {
       screenWidth,
       screenHeight,
     });
-    const startX = coords.x ? coords.x / deviceScaleFactor : null;
-    const startY = coords.y ? coords.y / deviceScaleFactor : null;
+    const startX = coords.x !== null && !isNaN(coords.x) ? coords.x / deviceScaleFactor : null;
+    const startY = coords.y !== null && !isNaN(coords.y) ? coords.y / deviceScaleFactor : null;
 
     this.logger.info(`Parsed coordinates: (${startX}, ${startY})`);
     this.logger.info(`Executing action: ${action_type}`);
@@ -240,20 +244,31 @@ export class BrowserOperator extends Operator {
         case 'click':
         case 'left_click':
         case 'left_single':
-          if (startX && startY) await this.handleClick(startX, startY);
-          else throw new Error(`Missing startX(${startX}) or startY${startX}.`);
+          if (startX !== null && startY !== null && !isNaN(startX) && !isNaN(startY)) {
+            await this.handleClick(startX, startY);
+          } else {
+            throw new Error(`Missing or invalid startX(${startX}) or startY(${startY}).`);
+          }
           break;
 
         case 'double_click':
         case 'left_double':
-          if (startX && startY) await this.handleDoubleClick(startX, startY);
-          else throw new Error(`Missing startX(${startX}) or startY${startX}.`);
+          if (startX !== null && startY !== null && !isNaN(startX) && !isNaN(startY)) {
+            await this.handleDoubleClick(startX, startY);
+          } else {
+            throw new Error(`Missing or invalid startX(${startX}) or startY(${startY}).`);
+          }
           break;
 
         case 'right_click':
-          if (startX && startY) await this.handleRightClick(startX, startY);
-          else throw new Error(`Missing startX(${startX}) or startY${startX}.`);
+        case 'right_single':
+          if (startX !== null && startY !== null && !isNaN(startX) && !isNaN(startY)) {
+            await this.handleRightClick(startX, startY);
+          } else {
+            throw new Error(`Missing or invalid startX(${startX}) or startY(${startY}).`);
+          }
           break;
+
 
         case 'type':
           await this.handleType(action_inputs);

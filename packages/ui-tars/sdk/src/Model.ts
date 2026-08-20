@@ -261,8 +261,8 @@ export class UITarsModel extends Model {
     );
 
     const costTime = Date.now() - startTime;
-    const costTokens = result.usage?.total_tokens ?? 0;
-    const prediction = result.choices?.[0]?.message?.content ?? '';
+    const costTokens = result?.usage?.total_tokens ?? 0;
+    const prediction = result?.choices?.[0]?.message?.content ?? '';
 
     logger?.info(
       `[UITarsModel] Response received in ${costTime}ms, tokens: ${costTokens}, prediction length: ${prediction.length}`,
@@ -273,6 +273,7 @@ export class UITarsModel extends Model {
       costTime,
       costTokens,
     };
+
 
   }
 

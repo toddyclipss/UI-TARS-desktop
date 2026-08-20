@@ -77,9 +77,13 @@ export class SettingStore {
         ) {
           SettingStore.instance.set('vlmModelName', 'gemini-3.7-flash');
         }
+        if (curStore.useResponsesApi && curStore.vlmProvider === VLMProviderV2.google_gemini) {
+          SettingStore.instance.set('useResponsesApi', false);
+        }
       } catch (err) {
         logger.error('[SettingStore migration error]', err);
       }
+
 
       SettingStore.instance.onDidAnyChange((newValue, oldValue) => {
         logger.log(

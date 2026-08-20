@@ -9,10 +9,12 @@ import {
   Point,
   Region,
   centerOf,
+  clipboard,
   keyboard,
   mouse,
   straightTo,
 } from '@computer-use/nut-js';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NutJSOperator } from '../src/index';
@@ -59,6 +61,10 @@ vi.mock('@computer-use/nut-js', async (importOriginal) => {
       RIGHT: 'right',
       MIDDLE: 'middle',
     },
+    clipboard: {
+      getContent: vi.fn().mockResolvedValue(''),
+      setContent: vi.fn(),
+    },
     Point: actual.Point,
     Region: actual.Region,
     straightTo: vi.fn((point) => point),
@@ -67,6 +73,7 @@ vi.mock('@computer-use/nut-js', async (importOriginal) => {
     sleep: vi.fn(),
   };
 });
+
 
 describe('execute', () => {
   beforeEach(() => {
@@ -121,31 +128,42 @@ describe('execute', () => {
 
     await nutJSOperator.execute(executeParams);
 
-    expect(keyboard.type).toHaveBeenCalledWith('doubao.com');
+    if (process.platform === 'win32') {
+      expect(clipboard.setContent).toHaveBeenCalledWith('doubao.com');
+      expect(keyboard.pressKey).toHaveBeenCalledWith(Key.LeftControl, Key.V);
+    } else {
+      expect(keyboard.type).toHaveBeenCalledWith('doubao.com');
+    }
     expect(keyboard.pressKey).toHaveBeenCalledWith(Key.Enter);
   });
+
+
 
   it('type doubao.com', async () => {
     const nutJSOperator = new NutJSOperator();
     const executeParams: ExecuteParams = {
       prediction:
-        "Thought: To proceed with the task of accessing doubao.com, I need to type the URL into the address bar. This will allow me to navigate to the website and continue with the subsequent steps of the task.\nAction: type(content='doubao.com')",
+        "Thought: Click on the search bar at the top of the screen\nAction: type(content='doubao.com')",
       parsedPrediction: {
-        reflection: '',
-        thought:
-          'To proceed with the task of accessing doubao.com, I need to type the URL into the address bar. This will allow me to navigate to the website and continue with the subsequent steps of the task.\n' +
-          `Type "doubao.com" into the browser's address bar.`,
+        thought: 'Click on the search bar at the top of the screen',
         action_type: 'type',
-        action_inputs: { content: 'doubao.com' },
+        action_inputs: {
+          content: 'doubao.com',
+        },
       },
       screenWidth: 1920,
       screenHeight: 1080,
-      scaleFactor: 1,
     };
+
 
     await nutJSOperator.execute(executeParams);
 
-    expect(keyboard.type).toHaveBeenCalledWith('doubao.com');
+    if (process.platform === 'win32') {
+      expect(clipboard.setContent).toHaveBeenCalledWith('doubao.com');
+      expect(keyboard.pressKey).toHaveBeenCalledWith(Key.LeftControl, Key.V);
+    } else {
+      expect(keyboard.type).toHaveBeenCalledWith('doubao.com');
+    }
     expect(keyboard.pressKey).not.toHaveBeenCalledWith(Key.Enter);
   });
 
@@ -153,23 +171,26 @@ describe('execute', () => {
     const nutJSOperator = new NutJSOperator();
     const executeParams: ExecuteParams = {
       prediction:
-        "Thought: To proceed with the task of accessing doubao.com, I need to type the URL into the address bar. This will allow me to navigate to the website and continue with the subsequent steps of the task.\nAction: type(content='Hello World\\nUI-TARS\\n')",
+        "Thought: Click on the search bar at the top of the screen\nAction: type(content='Hello World\\nUI-TARS\\n')",
       parsedPrediction: {
-        reflection: '',
-        thought:
-          'To proceed with the task of accessing doubao.com, I need to type the URL into the address bar. This will allow me to navigate to the website and continue with the subsequent steps of the task.\n' +
-          `Type "Hello World\nUI-TARS\n" into the browser's address bar.`,
+        thought: 'Click on the search bar at the top of the screen',
         action_type: 'type',
-        action_inputs: { content: 'Hello World\\nUI-TARS\\n' },
+        action_inputs: {
+          content: 'Hello World\nUI-TARS\n',
+        },
       },
       screenWidth: 1920,
       screenHeight: 1080,
-      scaleFactor: 1,
     };
 
     await nutJSOperator.execute(executeParams);
 
-    expect(keyboard.type).toHaveBeenCalledWith('Hello World\\nUI-TARS');
+    if (process.platform === 'win32') {
+      expect(clipboard.setContent).toHaveBeenCalledWith('Hello World\nUI-TARS');
+      expect(keyboard.pressKey).toHaveBeenCalledWith(Key.LeftControl, Key.V);
+    } else {
+      expect(keyboard.type).toHaveBeenCalledWith('Hello World\nUI-TARS');
+    }
     expect(keyboard.pressKey).toHaveBeenCalledWith(Key.Enter);
   });
 

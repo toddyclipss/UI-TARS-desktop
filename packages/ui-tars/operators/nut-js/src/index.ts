@@ -235,7 +235,9 @@ export class NutJSOperator extends Operator {
       }
 
       case 'type': {
-        const content = action_inputs.content?.trim();
+        const rawContent = action_inputs.content || '';
+        const hasEnter = rawContent.endsWith('\n') || rawContent.endsWith('\\n');
+        const content = rawContent.trim();
         logger.info('[NutjsOperator] type', content);
         if (content) {
           const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '');
@@ -252,7 +254,7 @@ export class NutJSOperator extends Operator {
             await keyboard.type(stripContent);
           }
 
-          if (content.endsWith('\n') || content.endsWith('\\n')) {
+          if (hasEnter) {
             await keyboard.pressKey(Key.Enter);
             await keyboard.releaseKey(Key.Enter);
           }
@@ -261,6 +263,7 @@ export class NutJSOperator extends Operator {
         }
         break;
       }
+
 
       case 'hotkey': {
         const keyStr = action_inputs?.key || action_inputs?.hotkey;

@@ -32,7 +32,7 @@ export const parseBoxToScreenCoords = ({
   screenHeight,
   factors = DEFAULT_FACTORS,
 }: {
-  boxStr: string;
+  boxStr?: string | number[];
   screenWidth: number;
   screenHeight: number;
   factors?: Factors;
@@ -40,11 +40,21 @@ export const parseBoxToScreenCoords = ({
   if (!boxStr) {
     return { x: null, y: null };
   }
-  const coords = boxStr
-    .replace('[', '')
-    .replace(']', '')
-    .split(',')
-    .map((num) => parseFloat(num.trim()));
+
+  let coords: number[] = [];
+  if (Array.isArray(boxStr)) {
+    coords = boxStr.map(Number);
+  } else if (typeof boxStr === 'string') {
+    coords = boxStr
+      .replace(/[()[\]<point></point><bbox></bbox>]/g, ' ')
+      .split(/[\s,]+/)
+      .filter(Boolean)
+      .map((num) => parseFloat(num.trim()));
+  }
+
+  if (!coords.length || coords.some(Number.isNaN)) {
+    return { x: null, y: null };
+  }
 
   const [x1, y1, x2 = x1, y2 = y1] = coords;
   const [widthFactor, heightFactor] = factors;
@@ -54,6 +64,7 @@ export const parseBoxToScreenCoords = ({
     y: Math.round(((y1 + y2) / 2) * screenHeight * heightFactor) / heightFactor,
   };
 };
+
 
 export const processVlmParams = (
   conversations: Message[],

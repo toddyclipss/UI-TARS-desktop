@@ -4,6 +4,8 @@
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { UITarsModel } from '../src/Model';
+import { UITarsModelVersion } from '@ui-tars/shared/types';
+
 
 // Mock OpenAI
 const mockCreate = vi.fn();
