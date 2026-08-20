@@ -41,6 +41,18 @@ export const parseBoxToScreenCoords = ({
     return { x: null, y: null };
   }
 
+  // If already computed screen pixel coords array: [x, y]
+  if (
+    Array.isArray(boxStr) &&
+    boxStr.length === 2 &&
+    (boxStr[0] > 1 || boxStr[1] > 1)
+  ) {
+    return {
+      x: Number.isFinite(boxStr[0]) ? boxStr[0] : null,
+      y: Number.isFinite(boxStr[1]) ? boxStr[1] : null,
+    };
+  }
+
   let coords: number[] = [];
   if (Array.isArray(boxStr)) {
     coords = boxStr.map(Number);
@@ -64,6 +76,7 @@ export const parseBoxToScreenCoords = ({
     y: Math.round(((y1 + y2) / 2) * screenHeight * heightFactor) / heightFactor,
   };
 };
+
 
 
 export const processVlmParams = (

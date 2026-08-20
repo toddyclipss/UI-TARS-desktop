@@ -5,7 +5,8 @@
  */
 import { LocalBrowser } from '@agent-infra/browser';
 import { ConsoleLogger, Logger, defaultLogger } from '@agent-infra/logger';
-import { Operator, parseBoxToScreenCoords } from '@ui-tars/sdk/core';
+import { Operator, parseBoxToScreenCoords, StatusEnum } from '@ui-tars/sdk/core';
+
 import {
   Page,
   KeyInput,
@@ -322,14 +323,21 @@ export class BrowserOperator extends Operator {
       throw error;
     }
 
+    let status = StatusEnum.RUNNING;
+    if (action_type === 'finished') {
+      status = StatusEnum.END;
+    } else if (action_type === 'call_user') {
+      status = StatusEnum.CALL_USER;
+    } else if (action_type === 'user_stop') {
+      status = StatusEnum.USER_STOPPED;
+    }
+
     return {
-      // Hand it over to the upper layer to avoid redundancy
-      // @ts-expect-error fix type later
-      startX,
-      startY,
-      action_inputs,
+      status,
     };
   }
+
+
 
   private async handleClick(x: number, y: number) {
     this.logger.info(`Clicking at (${x}, ${y})`);
