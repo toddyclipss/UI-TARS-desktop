@@ -13,3 +13,6 @@ scripts/merge-yml/*.yml
 .claude/
 .tarko
 .mcp*_token
+.idea/
+.vscode/
+
