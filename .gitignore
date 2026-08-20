@@ -15,4 +15,6 @@ scripts/merge-yml/*.yml
 .mcp*_token
 .idea/
 .vscode/
+release-binaries/
+*.exe
 
