@@ -43,7 +43,16 @@ export const runAgent = async (
   logger.info('runAgent');
   const settings = SettingStore.getStore();
   const { instructions, abortController } = getState();
-  assert(instructions, 'instructions is required');
+
+  if (!instructions || !instructions.trim()) {
+    logger.warn('[runAgent] No instructions provided');
+    setState({
+      ...getState(),
+      status: StatusEnum.ERROR,
+      errorMsg: 'Please enter instructions to execute.',
+    });
+    return;
+  }
 
   const language = settings.language ?? 'en';
 
@@ -123,7 +132,8 @@ export const runAgent = async (
     | NutJSElectronOperator
     | DefaultBrowserOperator
     | RemoteComputerOperator
-    | RemoteBrowserOperator;
+    | RemoteBrowserOperator
+    | null = null;
 
   switch (settings.operator) {
     case Operator.LocalComputer:
@@ -161,7 +171,14 @@ export const runAgent = async (
       operatorType = 'browser';
       break;
     default:
+      operator = new NutJSElectronOperator();
+      operatorType = 'computer';
       break;
+  }
+
+  if (!operator) {
+    operator = new NutJSElectronOperator();
+    operatorType = 'computer';
   }
 
   let modelVersion = getModelVersion(settings.vlmProvider);
@@ -186,6 +203,17 @@ export const runAgent = async (
     };
     modelAuthHdrs = await getAuthHeader();
     modelVersion = await ProxyClient.getRemoteVLMProvider();
+  } else {
+    if (!settings.vlmApiKey || !settings.vlmApiKey.trim()) {
+      logger.warn('[runAgent] vlmApiKey is missing');
+      setState({
+        ...getState(),
+        status: StatusEnum.ERROR,
+        errorMsg:
+          'API Key is not configured. Please open Settings and enter your Gemini API Key.',
+      });
+      return;
+    }
   }
 
   const systemPrompt = getSpByModelVersion(
@@ -204,14 +232,13 @@ export const runAgent = async (
     onError: (params) => {
       const { error } = params;
       logger.error('[onGUIAgentError]', settings, error);
+      const message =
+        error?.message ||
+        (typeof error === 'string' ? error : JSON.stringify(error));
       setState({
         ...getState(),
         status: StatusEnum.ERROR,
-        errorMsg: JSON.stringify({
-          status: error?.status,
-          message: error?.message,
-          stack: error?.stack,
-        }),
+        errorMsg: message,
       });
     },
     retry: {
@@ -246,11 +273,12 @@ export const runAgent = async (
       setState({
         ...getState(),
         status: StatusEnum.ERROR,
-        errorMsg: e.message,
+        errorMsg: e?.message || String(e),
       });
     });
 
-  logger.info('[runAgent Totoal cost]: ', (Date.now() - startTime) / 1000, 's');
+  logger.info('[runAgent Total cost]: ', (Date.now() - startTime) / 1000, 's');
 
   afterAgentRun(settings.operator);
 };
+

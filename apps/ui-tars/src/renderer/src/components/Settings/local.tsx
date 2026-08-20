@@ -31,6 +31,8 @@ export const checkVLMSettings = async () => {
   return false;
 };
 
+import { toast } from 'sonner';
+
 export const LocalSettingsDialog = ({
   isOpen,
   onSubmit,
@@ -44,24 +46,26 @@ export const LocalSettingsDialog = ({
       onSubmit();
     } catch (error) {
       console.error('Failed to submit settings:', error);
+      toast.error('Please configure your VLM API Key to start');
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[480]">
+      <DialogContent className="max-w-[520px]">
         <DialogHeader>
           <DialogTitle>VLM Settings</DialogTitle>
           <DialogDescription>
-            Enter VLM settings to enable the model to control the local computer
-            or browser.
+            Enter your VLM settings (Google Gemini) to enable the model to
+            control the local computer or browser.
           </DialogDescription>
         </DialogHeader>
-        <VLMSettings ref={vlmSettingsRef} />
-        <Button className="mt-8 mx-8" onClick={handleGetStart}>
-          Get Start
+        <VLMSettings ref={vlmSettingsRef} autoSave={true} />
+        <Button className="mt-6 mx-6" onClick={handleGetStart}>
+          Get Started
         </Button>
       </DialogContent>
     </Dialog>
   );
 };
+
