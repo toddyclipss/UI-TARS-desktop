@@ -96,7 +96,11 @@ export class NutJSOperator extends Operator {
     const { parsedPrediction, screenWidth, screenHeight, scaleFactor } = params;
 
     const { action_type, action_inputs } = parsedPrediction;
-    const startBoxStr = action_inputs?.start_box || '';
+    const startBoxStr =
+      action_inputs?.start_box ||
+      action_inputs?.start_coords ||
+      action_inputs?.point ||
+      '';
 
     logger.info('[NutjsOperator] execute', scaleFactor);
     const { x: startX, y: startY } = parseBoxToScreenCoords({
@@ -104,6 +108,7 @@ export class NutJSOperator extends Operator {
       screenWidth,
       screenHeight,
     });
+
 
     logger.info(`[NutjsOperator Position]: (${startX}, ${startY})`);
 
@@ -324,5 +329,8 @@ export class NutJSOperator extends Operator {
       default:
         logger.warn(`Unsupported action: ${action_type}`);
     }
+
+    return { status: StatusEnum.RUNNING };
   }
 }
+

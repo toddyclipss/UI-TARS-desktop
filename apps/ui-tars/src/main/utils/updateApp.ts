@@ -34,9 +34,9 @@ export class AppUpdater {
     });
 
     autoUpdater.on('error', (error) => {
-      logger.error('Update_Error', error);
-      mainWindow.webContents.send('main:error', error);
+      logger.warn('Update check info:', error?.message);
     });
+
 
     autoUpdater.on('update-available', (releaseInfo: UpdateInfo) => {
       logger.info('new version', releaseInfo);

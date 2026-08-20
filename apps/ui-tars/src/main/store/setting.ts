@@ -86,16 +86,22 @@ export class SettingStore {
 
 
       SettingStore.instance.onDidAnyChange((newValue, oldValue) => {
+        if (JSON.stringify(newValue) === JSON.stringify(oldValue)) {
+          return;
+        }
         logger.log(
           `SettingStore: ${JSON.stringify(sanitizeSettingForLog(oldValue))} changed to ${JSON.stringify(sanitizeSettingForLog(newValue))}`,
         );
         // Notify that value updated
         BrowserWindow.getAllWindows().forEach((win) => {
-          win.webContents.send('setting-updated', newValue);
+          if (!win.isDestroyed()) {
+            win.webContents.send('setting-updated', newValue);
+          }
         });
       });
     }
     return SettingStore.instance;
+
   }
 
 

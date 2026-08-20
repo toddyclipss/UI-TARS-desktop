@@ -76,7 +76,9 @@ export type ActionInputs = Partial<{
   direction: string;
   start_coords: Coords;
   end_coords: Coords;
+  point: string | Coords;
 }>;
+
 
 export interface PredictionParsed {
   /** `<action_inputs>` parsed from action_type(`action_inputs`) */

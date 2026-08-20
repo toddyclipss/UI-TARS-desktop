@@ -52,8 +52,8 @@ export class NutJSElectronOperator extends NutJSOperator {
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: {
-        width: Math.round(logicalSize.width),
-        height: Math.round(logicalSize.height),
+        width: Math.max(Math.round(physicalSize.width), Math.round(logicalSize.width)),
+        height: Math.max(Math.round(physicalSize.height), Math.round(logicalSize.height)),
       },
     });
     const primarySource =
@@ -73,15 +73,16 @@ export class NutJSElectronOperator extends NutJSOperator {
     const screenshot = primarySource.thumbnail;
 
     const resized = screenshot.resize({
-      width: physicalSize.width,
-      height: physicalSize.height,
+      width: Math.round(logicalSize.width),
+      height: Math.round(logicalSize.height),
     });
 
     return {
-      base64: resized.toJPEG(75).toString('base64'),
+      base64: resized.toJPEG(80).toString('base64'),
       scaleFactor,
     };
   }
+
 
   async execute(params: ExecuteParams): Promise<ExecuteOutput> {
     const { action_type, action_inputs } = params.parsedPrediction;

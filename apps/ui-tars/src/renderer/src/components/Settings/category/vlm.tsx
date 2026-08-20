@@ -123,46 +123,42 @@ export function VLMSettings({
     }
     if (
       newProvider === undefined &&
-      newBaseUrl === '' &&
-      newApiKey === '' &&
-      newModelName === ''
+      !newBaseUrl &&
+      !newApiKey &&
+      !newModelName
     ) {
       return;
     }
 
     const validAndSave = async () => {
-      if (newProvider !== settings.vlmProvider) {
-        updateSetting({ ...settings, vlmProvider: newProvider });
+      if (
+        newProvider === settings.vlmProvider &&
+        newBaseUrl === settings.vlmBaseUrl &&
+        newApiKey === settings.vlmApiKey &&
+        newModelName === settings.vlmModelName &&
+        newUseResponsesApi === settings.useResponsesApi
+      ) {
+        return;
       }
 
       const isUrlValid = await form.trigger('vlmBaseUrl');
-      if (isUrlValid && newBaseUrl !== settings.vlmBaseUrl) {
-        updateSetting({ ...settings, vlmBaseUrl: newBaseUrl });
-      }
-
       const isKeyValid = await form.trigger('vlmApiKey');
-      if (isKeyValid && newApiKey !== settings.vlmApiKey) {
-        updateSetting({ ...settings, vlmApiKey: newApiKey });
-      }
-
       const isNameValid = await form.trigger('vlmModelName');
-      if (isNameValid && newModelName !== settings.vlmModelName) {
-        updateSetting({ ...settings, vlmModelName: newModelName });
-      }
 
-      const isResponsesApiValid = await form.trigger('useResponsesApi');
-      if (
-        isResponsesApiValid &&
-        newUseResponsesApi !== settings.useResponsesApi
-      ) {
+      if (isUrlValid && isKeyValid && isNameValid) {
         updateSetting({
           ...settings,
+          vlmProvider: newProvider,
+          vlmBaseUrl: newBaseUrl,
+          vlmApiKey: newApiKey,
+          vlmModelName: newModelName,
           useResponsesApi: newUseResponsesApi,
         });
       }
     };
 
-    validAndSave();
+    const timeoutId = setTimeout(validAndSave, 300);
+    return () => clearTimeout(timeoutId);
   }, [
     autoSave,
     newProvider,
@@ -175,6 +171,7 @@ export function VLMSettings({
     form,
     isRemoteAutoUpdatedPreset,
   ]);
+
 
   const handlePresetModal = async (e: React.MouseEvent) => {
     e.preventDefault();
