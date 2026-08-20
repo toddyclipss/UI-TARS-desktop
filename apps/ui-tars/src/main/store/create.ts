@@ -6,6 +6,7 @@ import { createStore } from 'zustand/vanilla';
 
 import { StatusEnum } from '@ui-tars/shared/types';
 
+import * as env from '@main/env';
 import type { AppState } from './types';
 
 export const store = createStore<AppState>(
@@ -18,9 +19,12 @@ export const store = createStore<AppState>(
       sessionHistoryMessages: [],
       messages: [],
       errorMsg: null,
-      ensurePermissions: {},
+      ensurePermissions: env.isMacOS
+        ? {}
+        : { screenCapture: true, accessibility: true },
       abortController: null,
       thinking: false,
       browserAvailable: false, // Defaults to false until the detection is complete
     }) satisfies AppState,
 );
+

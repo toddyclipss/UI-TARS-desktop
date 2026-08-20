@@ -14,6 +14,8 @@ import { ConversationWithSoM } from '@/main/shared/types';
 import { Message } from '@ui-tars/shared/types';
 import { Operator } from '@/main/store/types';
 
+import { isWindows } from '@renderer/utils/os';
+
 const filterAndTransformWithMap = (
   history: ConversationWithSoM[],
 ): Message[] => {
@@ -63,8 +65,13 @@ export const useRunAgent = () => {
     callback: () => void = () => {},
   ) => {
     const operator = settings.operator;
+    const isLocal =
+      operator === Operator.LocalBrowser || operator === Operator.LocalComputer;
+
+    // Only macOS enforces OS-level screen capture and accessibility grants
     if (
-      (operator === Operator.LocalBrowser || Operator.LocalComputer) &&
+      !isWindows &&
+      isLocal &&
       !(ensurePermissions?.accessibility && ensurePermissions?.screenCapture)
     ) {
       const permissionsText = [
@@ -79,6 +86,7 @@ export const useRunAgent = () => {
       );
       return;
     }
+
 
     const initialMessages: Conversation[] = [
       {

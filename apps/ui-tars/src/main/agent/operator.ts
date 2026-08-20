@@ -87,7 +87,9 @@ export class NutJSElectronOperator extends NutJSOperator {
     const { action_type, action_inputs } = params.parsedPrediction;
 
     if (action_type === 'type' && env.isWindows && action_inputs?.content) {
-      const content = action_inputs.content?.trim();
+      const rawContent = action_inputs.content || '';
+      const hasEnter = rawContent.endsWith('\n') || rawContent.endsWith('\\n');
+      const content = rawContent.trim();
 
       logger.info('[device] type', content);
       const stripContent = content.replace(/\\n$/, '').replace(/\n$/, '');
@@ -99,13 +101,14 @@ export class NutJSElectronOperator extends NutJSOperator {
       await sleep(50);
       clipboard.writeText(originalClipboard);
 
-      if (content.endsWith('\\n') || content.endsWith('\n')) {
+      if (hasEnter) {
         await keyboard.pressKey(Key.Enter);
         await sleep(50);
         await keyboard.releaseKey(Key.Enter);
       }
       return { status: StatusEnum.RUNNING };
     } else {
+
       return await super.execute(params);
     }
   }

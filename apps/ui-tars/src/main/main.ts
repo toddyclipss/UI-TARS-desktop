@@ -79,8 +79,14 @@ const initializeApp = async () => {
     const { ensurePermissions } = await import('@main/utils/systemPermissions');
 
     const ensureScreenCapturePermission = ensurePermissions();
+    store.setState({ ensurePermissions: ensureScreenCapturePermission });
     logger.info('ensureScreenCapturePermission', ensureScreenCapturePermission);
+  } else {
+    store.setState({
+      ensurePermissions: { screenCapture: true, accessibility: true },
+    });
   }
+
 
   await checkBrowserAvailability();
 

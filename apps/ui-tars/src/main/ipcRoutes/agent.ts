@@ -54,10 +54,19 @@ export const agentRoute = t.router({
       errorMsg: null,
     });
 
-    await runAgent(store.setState, store.getState);
-
-    store.setState({ thinking: false });
+    try {
+      await runAgent(store.setState, store.getState);
+    } catch (err: any) {
+      console.error('[runAgent uncaught error]', err);
+      store.setState({
+        status: StatusEnum.ERROR,
+        errorMsg: err?.message || String(err),
+      });
+    } finally {
+      store.setState({ thinking: false });
+    }
   }),
+
   pauseRun: t.procedure.input<void>().handle(async () => {
     const guiAgent = GUIAgentManager.getInstance().getAgent();
     if (guiAgent instanceof GUIAgent) {
