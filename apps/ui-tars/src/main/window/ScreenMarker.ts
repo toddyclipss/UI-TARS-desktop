@@ -58,13 +58,14 @@ class ScreenMarker {
       hasShadow: false,
       thickFrame: false,
       paintWhenInitiallyHidden: true,
-      type: 'panel',
+      type: env.isMacOS ? 'panel' : 'toolbar',
       webPreferences: { nodeIntegration: true, contextIsolation: false },
     });
 
     this.screenWaterFlow.setFocusable(false);
-    this.screenWaterFlow.setContentProtection(false);
-    this.screenWaterFlow.setIgnoreMouseEvents(true);
+    this.screenWaterFlow.setContentProtection(true);
+    this.screenWaterFlow.setIgnoreMouseEvents(true, { forward: true });
+
 
     this.screenWaterFlow.loadURL(`data:text/html;charset=UTF-8,
       <html>

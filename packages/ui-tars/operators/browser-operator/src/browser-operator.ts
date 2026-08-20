@@ -812,11 +812,19 @@ export class DefaultBrowserOperator extends BrowserOperator {
         [SearchEngine.BING]: 'https://www.bing.com/',
         [SearchEngine.BAIDU]: 'https://www.baidu.com/',
       };
-      const targetUrl = searchEngineUrls[searchEngine];
-      await openingPage?.goto(targetUrl, {
-        waitUntil: 'networkidle2',
-      });
+      const targetUrl = searchEngineUrls[searchEngine] || 'https://www.google.com/';
+
+      await openingPage
+        ?.goto(targetUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 15000,
+        })
+        .catch((e) =>
+          this.logger?.warn('Failed to load initial search engine page:', e),
+        );
     }
+
+
 
     this.instance.setHighlightClickableElements(highlight);
 

@@ -28,7 +28,12 @@ const keepModules = new Set([
   ...getExternalPkgs(),
   '@computer-use/mac-screen-capture-permissions',
 ]);
-const needSubDependencies = ['@computer-use/node-mac-permissions', 'sharp'];
+const needSubDependencies = [
+  '@computer-use/node-mac-permissions',
+  '@computer-use/libnut-win32',
+  'sharp',
+];
+
 const ignorePattern = new RegExp(
   `^/node_modules/(?!${[...keepModules].join('|')})`,
 );

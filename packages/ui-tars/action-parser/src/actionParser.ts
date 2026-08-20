@@ -338,18 +338,15 @@ export function parseActionVlm(
 
             actionInputs[boxKey] = [x1, y1, x2, y2].every(isNumber) && floatNumbers.length >= 2
               ? [
-                  (Math.round(
-                    ((x1 + x2) / 2) * screenContext?.width * widthFactor,
-                  ) /
-                    widthFactor) *
-                    (scaleFactor ?? 1),
-                  (Math.round(
-                    ((y1 + y2) / 2) * screenContext?.height * heightFactor,
-                  ) /
-                    heightFactor) *
-                    (scaleFactor ?? 1),
+                  Math.round(
+                    ((x1 + x2) / 2) * screenContext.width,
+                  ),
+                  Math.round(
+                    ((y1 + y2) / 2) * screenContext.height,
+                  ),
                 ]
               : [];
+
           }
         } else {
           actionInputs[
